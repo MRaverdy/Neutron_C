@@ -1,0 +1,271 @@
+vecx vecteur de 8 entier tel que vecx<-[-1,-1,0,1,1,1,0,-1] 
+vecy vecteur de 8 entier tel que vecy<-[0,1,1,1,0,-1,-1,-1] {(vecx,vecy) correspond à un vecteur géometrique utilisé pour les deplacement. Par exemple, vecx[1] et vecy[1] correspondent au deplacement 1.}
+
+L entier fixé à 5 pour la taille du damier
+
+type enuméré Color ={ bleu, rouge, vert, vide}
+
+type Case = structure
+                oqp: Booléen      {Variable qui indique si la case est occupée ou non.}
+                couleur: Color   {Couleur présente dans la case.}
+            fin
+
+
+type Damier = structure
+                C[L][L]: Matrice[1..L][1..L] de Case   {Matrice L*L qui représente le damier.}
+                posN[2]: Vecteur[2] d'entiers          {posN est un vecteur de dimension 2 qui contient les coordonnées x et y du neutron.}
+              fin            
+
+action initialisation(D):      {Action qui prend en parametre le damier et qui disposera les pions aux bosn emplacements pour un début de partie.}
+    Donnée / Résultat : D Damier
+    Locale : k,j,i entier
+    
+    Pour k allant de 1 à L Faire:   {Boucle pour placer les pions rouges en haut du damier.}
+        D.C[1][k].oqp<-Vrai
+        D.C[1][k].couleur<-rouge
+    Finpour
+    
+    Pour j allant de 1 à L Faire:       {Boucle pour renseigner les cases vides du damier.}
+        Pour i allant de 1 à L Faire:
+        D.C[j][i].oqp<-Faux
+        D.C[j][i].couleur<-vide
+        FinPour
+    FinPour
+    
+    D.C[(L+1)/2][(L+1)/2].oqp<-Vrai                    {Placement du neutron au centre du damier et enregistrement de ses coordonnées.}
+    D.C[(L+1)/2][(L+1)/2].couleur<-vert             
+    D.posN[1]<-2
+    D.posN[2]<-2
+    
+    Pour k allant de 1 à L Faire:   {Boucle pour placer les pions bleus en bas du damier.}
+        D.C[L][k].oqp<-Vrai
+        D.C[L][k].couleur<-bleu
+    FinPour
+FinAction
+
+Action deplace(x,y,D): {Action qui prends en parametre x et y (compris entre 1 et L) coordonnées d'un pion à deplacer et le Damier pour effectue                                          
+                          le déplacement.}
+    Données : x,y entier
+    Donnée / Résultat : D Damier
+    Locales : Colors Color  {Colors qui est va stocker la couleur du pion à deplace pour l'affecter à la nouvelle case de destination.}
+              dir entier 
+              x1,y1 entier
+    Initialisation :
+    
+    x1<-x   {On initialise les deux variables locales pour ne pas changer x et y qui permettront de "vider" la case une fois le deplacement fait.}
+    y1<-y
+    
+    Traitement :
+    
+    Tant que x=x1 et y=y1 Faire:
+        Afficher("Choisissez une direction entre 1 et 8 : ")   
+        Lire(dir)   {L'utilisateur chosis une direction qui va servir dans l'utilisation des vecteurs de déplacement ex: direction 1 on obtient 
+                    (-1,0) qui correspond sur le damier à un déplacement d'une case vers le haut}
+        Faire:
+        x1<-x1+vecx[dir]            {on deplace le pion case par case jusqu'à un autre pion ou un bord de plateau}
+        y1<-y1+vecy[dir]
+        Tant que x1>=1 et x1<=L et y1>=1 et y1<=L et D.C[x1][y1].oqp==0
+        FinTantQue  
+        x1<-x1-vecx[dir]    {Une fois que l'on sort de la boucle une incrémentation de trop a été effectuée pour réaliser les vérifications, on revient alors en arrière d'une incrémentation}
+        y1<-y1-vecy[dir]
+    FinTantQue
+    Colors<-D.C[x][y].couleur
+    D.C[x][y].oqp<-Faux            {"Vidage" de l'ancienne case et remplissage de la nouvelle case de destination}
+    D.C[x][y].couleur<-vide
+    D.C[x1][y1].oqp<-Vrai
+    D.C[x1][y1].couleur<-Colors
+    Si D.C[x1][y1].couleur=vert Faire :     {Si le pion deplacé était le neutron, on garde ses nouvelles coordonnées dans posN.}
+        D.posN[1]<-x1
+        D.posN[2]<-y1
+    FinSi
+FinAction
+
+Fonction verif_bloque(x,y,D): Booléen {Fonction qui détermine si un pion de coordonnées x et y (comprise entre 1 et L) sur le damier est bloqué ou non}
+    Données : x,y entiers   
+              D Damier
+    Locales : i entier
+              bloque Booléen
+    
+    Initialisation :
+    
+    i<-1
+    bloque<-Vrai  
+    
+    Traitement :
+    
+    Tant que i<=8 et bloque=Vrai Faire : {On boucle tant que le pion est bloqué et dès qu'il a une option de deplacement de trouver on sort de la 
+                                            boucle.}
+        x1<-x+vecx[i];              {La vérification s'opére sur les 8 directions possibles en utilisant les vecteurs de deplacement.}
+        y1<-y+vecy[i];
+        Si x1>=1 et x1<=L et y1>=1 et y1<=L Faire:  {On vérifie que la case regardée est bien dans les dimensions du damier.}
+            Si D.C[x1][y1].oqp=Faux Faire:  {Si la case est libre le pion est dans la capacité de bouger donc bloque est faux.}
+                bloque=Faux
+            FinSi
+        FinSi
+        i=i+1
+    FinTantQue
+    Retourner(bloque)  {Vrai si le pion est bloque Faux sinon}
+FinFonction
+
+Action verif_tous_en_face(nonfin,couleurtour,D): {Action qui determine si tout les pions du joueurs à la fin de son tour son dans le camp 
+                                                    adverse.}
+    Données : couleurtour Color
+              D Damier
+    Donnée / Résultat : nonfin Booléen  {nonfin est un booléen qui fixe si la partie doit continuer ou pas.}
+    Locale : c entier
+    
+    Initialisation :
+    
+    c<-1
+    
+    Traitement :
+    
+    Si couleurtour=rouge Faire: {si c'est le tour des rouges on vérifie que tous ses pions soient dans l'autre camp}
+        nonfin<-Faux   {fixé à 0 donc on sous entend déjà la victoire}
+        Tant que c<=L et nonfin=Faux Faire :
+            Si D.C[L][c].couleur≠couleurtour Faire : {si en effet un pion n'est pas rouge dans le camp bleu alors le jeu continuera}
+                nonfin<-Vrai 
+            FinSi
+        c<-c+1
+        FinTantQue
+    Sinon Si couleurtour=bleu Faire : {Sinon on fait de même pour le bleu}
+        nonfin<-Faux
+        Tant que c<=L et nonfin=Faux
+            Si D.C[1][c].couleur≠couleurtour Faire :
+                nonfin<-Vrai
+            FinSi
+        c<-c+1
+        FinTantQue
+    FinSi
+FinAction
+
+Action verif_pions_bloques(nonfin,couleurtour,D): {Action qui vérifie si un joueur peut bouger au moins un de ses pions ou non.}
+    Données : couleurtour Color
+              D Damier
+    Donnée / Résultat : nonfin Booléen {c.f. verif_tous_en_face.}
+    Locales : nbpionimmobile,nbpion,j,k entiers {nbpionimmobile compte le nombre de pion immobile et nbpion sert à verifier que tout les pions sont 
+                                                passés en revu, pour permettre ainsi d'arreter la boucle plus tot lorsque nbpion=L.}
+    Initialisation :
+    
+    nbpion<-0
+    nbpionimmobile<-0
+    j<-1
+    
+    Traitement :
+    
+    Tant que j<=L et nbpion<=L et nonfin=Vrai Faire :
+        k<-1
+        Tant que k<=L et nbpion<=L et nonfin=Vrai Faire :                
+            Si D.C[j][k].couleur=couleurtour Faire :
+                nbpionimmobile<-nbpionimmobile+verif_bloque(j,k,D);
+                nbpion<-nbpion+1
+            FinSi
+            k<-k+1
+        FinTantQue
+        j<-j+1
+        Si nbpionimmobile=L   {Lorsque le nombre de pions non déplacables est égal au nombre total de pion, nonfin passe à 0.}
+            nonfin<-Faux
+        FinSi
+    FinTantQue
+FinAction
+
+Action verif_neutron_dans_camp(nonfin,couleurtour,D):{Fonction qui vérifie si un joueur a réussi à placer le neutron dans le camp adverse.}
+    Données / Résultat :  nonfin Booléen,
+                          couleurtour Color,
+    Donnée : D Damier,
+    Locale : f entier,
+    
+    Initialisation :
+    
+    f<-1
+    
+    Traitement :
+    
+    Si D.posN[1]=0 Faire :
+        couleurtour<-rouge
+        Tant que f<=L et couleurtour=rouge Faire :{/*Ici on vérifie le cas ou toutes les cases de la ligne d'un joueur sont occupées par quatre pions adverses et le neutron. Dans ce cas, le joueur possédant le neutron et les pions adverses dans son camp perd.*/
+            Si D.C[1][f].couleur≠bleu et D.C[1][f].couleur≠vert Faire :
+                couleurtour<-bleu
+            FinSi
+            f<-f+1
+        FinTantQue
+        nonfin<-Faux
+    Sinon Si D.posN[1]=L Faire :
+        couleurtour<-bleu
+        Tant que f<=L et couleurtour=bleu Faire :
+            Si D.C[L][f].couleur≠rouge et D.C[L][f].couleur≠vert Faire :
+                couleurtour<-rouge
+            FinSi
+            f<-f+1
+        FinTantQue
+        nonfin<-Faux
+    FinSi
+FinAction
+
+Action tour(i,nonfin,couleurtour,D):
+    Données / Résultats : i Entier
+                          nonfin Booléen
+                          couleurtour Color
+                          D Damier
+    Locales : x,y Entiers
+    
+    Traitement :
+    
+    Faire : 
+        Afficher("Choisissez les coordonnées x,y du pion à déplacer : ")
+        Lire(x,y)
+    Tant Que D.C[x][y].couleur≠couleurtour{Cette ligne permet au joueur de choisir un nouveau pion si il a choisi un pion adverse ou une case vide.}
+    deplace(x,y,D)
+    affichage(D)
+    
+    Si i%2=0 Faire :{Cela nous permet d'alterner entre les joueurs rouge et bleu à chaque tour.}
+        Afficher("Joueur rouge :\n")
+        couleurtour<-rouge
+    Sinon
+        Afficher("Joueur bleu :\n")
+        couleurtour<-bleu
+    FinSinon
+    
+    verif_tous_en_face(nonfin,couleurtour,D){On vérifie si le joueur a placé tous ses pions en face.}
+    
+    Si verif_bloque(D->posN[0],D->posN[1],*D)=Vrai Faire :{On vérifie que le neutron ne soit pas bloqué.}
+        nonfin<-Faux
+    
+    Si nonfin<-Vrai Faire :
+        
+        Afficher("Déplacez le neutron.\n")
+        deplace(D->posN[1],D->posN[2],D)
+        affichage(D)
+        
+        verif_pions_bloques(nonfin,couleurtour,D){On vérifie si le joueur peut bouger au moins un pion.}
+        
+        verif_neutron_dans_camp(nonfin,couleurtour,D){On vérifie que le neutron ne soit pas dans un des deux camps.}
+        
+        i=i+1
+    FinSi
+    
+FinAction
+
+Action Programme_principale():
+    Locale : D Damier 
+             couleurtour Color
+             i entier
+             nonfin Booléen
+    
+    Initialisation :         
+        
+    couleutour<-bleu         {couleurtour détermine le joueur qui est actuellement en train de jouer. Elle nous sert également à contenir le joueur gagnant à la fin du programme.}
+    i<-0
+    nonfin<-Vrai {nonfin est une variable qui détermine si la partie est finie ou non. si nonfin=Vrai, la partie n'est pas finie et si nonfin=Faux, la partie est terminée.}
+    initialisation(D)
+    affichage(D) { Affichage est propre au langage on suppose donc que cette fonction affichera correctement le damier sur la sortie désiré.}
+    Afficher("Joueur bleu :\n")
+    Tantque nonfin=Vrai Faire :
+    tour(i,nonfin,couleurtour,D)
+    FinTantQue
+    Si couleurtour=rouge Faire:
+        Afficher("Les bleus gagnent !\n")
+    Sinon Si couleurtour=bleu Faire :
+       Afficher("Les rouges gagnent !\n")
+    FinSi
+FinAction
